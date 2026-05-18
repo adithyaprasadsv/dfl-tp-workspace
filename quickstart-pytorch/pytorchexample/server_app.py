@@ -11,6 +11,7 @@ from flwr.serverapp import Grid, ServerApp
 from pytorchexample.model import CustomFashionModel
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
+import numpy as np
 
 ## sample clients
 def sample_clients(node_ids, fraction: float, global_rng: random.Random) -> list:
@@ -33,10 +34,7 @@ def fedavg(state_dicts: List[Dict[str, torch.Tensor]], num_examples: List[int]) 
     return aggregated
 
 ## Metric aggregation
-def aggregate_metrics(
-    metrics: List[Dict[str, float]],
-    num_examples: List[int],
-) -> Dict[str, float]:
+def aggregate_metrics(metrics: List[Dict[str, float]], num_examples: List[int]) -> Dict[str, float]:
     total = sum(num_examples)
     aggregated = {}
 
@@ -56,6 +54,12 @@ def arrays_to_state_dict(arrays: ArrayRecord, model: CustomFashionModel) -> Dict
         key: torch.tensor(val)
         for key, val in zip(keys, params)
     }
+
+def list_to_array_record(arrays: list) -> ArrayRecord:
+    return ArrayRecord(arrays)
+
+def array_record_to_list(record: ArrayRecord) -> list:
+    return record.to_numpy_ndarrays()
 
 # Create ServerApp
 # app = ServerApp()
@@ -113,6 +117,14 @@ def main(grid: Grid, context: Context) -> None:
     global_model = CustomFashionModel()
     initial_arrays = ArrayRecord(global_model.get_model_parameters())
 
+    algorithm = str(context.run_config.get("client-algorithm", "fedavg"))
+    # Initialize global control variate c to zeros (same shape as model params)
+    if algorithm == "scaffold":
+        print("initializing global control variate c to zeros")
+        c_global = [np.zeros_like(p) for p in global_model.get_model_parameters()]
+    else:
+        c_global = None
+
     # client node IDs
     all_node_ids = grid.get_node_ids()   # returns set[int]
     print(f"\nAvailable clients: {len(all_node_ids)}")
@@ -128,12 +140,34 @@ def main(grid: Grid, context: Context) -> None:
         print(f" Training clients: {len(train_clients)}")
 
         from flwr.app import Message, RecordDict
+        # train_messages = [
+        #     Message(
+        #         content=RecordDict({
+        #             "arrays": current_arrays,
+        #             "config": ConfigRecord({"lr": lr, "local-epochs": local_epochs, "mu": mu}),
+        #         }),
+        #         message_type="train",
+        #         dst_node_id=nid,
+        #         group_id=str(round_num),
+        #     )
+        #     for nid in train_clients
+        # ]
+
+        if algorithm == "scaffold":
+            msg_content = RecordDict({
+                "arrays":   current_arrays,
+                "c_global": list_to_array_record(c_global),
+                "config":   ConfigRecord({"lr": lr, "local-epochs": local_epochs, "mu": 0.0}),
+            })
+        else:
+            msg_content = RecordDict({
+                "arrays": current_arrays,
+                "config": ConfigRecord({"lr": lr, "local-epochs": local_epochs, "mu": mu}),
+            })
+
         train_messages = [
             Message(
-                content=RecordDict({
-                    "arrays": current_arrays,
-                    "config": ConfigRecord({"lr": lr, "local-epochs": local_epochs, "mu": mu}),
-                }),
+                content=msg_content,
                 message_type="train",
                 dst_node_id=nid,
                 group_id=str(round_num),
@@ -146,20 +180,60 @@ def main(grid: Grid, context: Context) -> None:
         client_state_dicts = []
         client_num_examples = []
         client_train_metrics = []
+        client_c_locals = []   # for scaffold
 
         for reply in train_replies:
-            # Extract updated weights
+            if not reply.has_content():
+                print(f"  WARNING: train reply has no content, skipping.")
+                continue
+
             sd = arrays_to_state_dict(reply.content["arrays"], global_model)
             client_state_dicts.append(sd)
 
-            # Extract metrics
             m = dict(reply.content["metrics"])
             client_num_examples.append(int(m.pop("num-examples")))
             client_train_metrics.append(m)
 
+            if algorithm == "scaffold":
+                ck = array_record_to_list(reply.content["c_local"])
+                client_c_locals.append(ck)
+
+        if not client_state_dicts:
+            print(f"  Round {round_num}: no valid replies, skipping.")
+            results.append({
+                "round": round_num, "num_train_clients": 0,
+                "train_loss": None, "train_acc": None,
+                "fed_eval_loss": None, "fed_eval_acc": None,
+                "central_loss": None, "central_acc": None,
+            })
+            continue
+
+        if algorithm == "scaffold" and client_c_locals:
+            n = len(client_c_locals)
+            c_global = [
+                c_i + (1.0 / n) * sum(ck[i] - c_i for ck in client_c_locals)
+                for i, c_i in enumerate(c_global)
+            ]
+
         # Aggregate & update global model
-        new_state_dict = fedavg(client_state_dicts, client_num_examples)
+        strategy = str(context.run_config.get("strategy", "fedavg"))
+        krum_f = int(context.run_config.get("krum-f", 0))
+
+        # Inside the round loop, replace the fedavg call:
+        if strategy == "fedmedian":
+            print("Performing FedMedian aggregation")
+            new_state_dict = fedmedian(client_state_dicts)
+        elif strategy == "krum":
+            print(f"Performing Krum aggregation with f={krum_f}")
+            new_state_dict = krum(client_state_dicts, f=krum_f)
+        else:
+            # default: fedavg
+            new_state_dict = fedavg(client_state_dicts, client_num_examples)
+
         global_model.load_state_dict(new_state_dict)
+
+        # new_state_dict = fedavg(client_state_dicts, client_num_examples)
+        # global_model.load_state_dict(new_state_dict)
 
         agg_train = aggregate_metrics(client_train_metrics, client_num_examples)
         print(f"  Train loss: {agg_train.get('train_loss', 0):.4f} | "
@@ -185,14 +259,21 @@ def main(grid: Grid, context: Context) -> None:
         client_eval_examples = []
 
         for reply in eval_replies:
+            if not reply.has_content():
+                print(f"  WARNING: evaluate reply has no content, skipping.")
+                continue
             m = dict(reply.content["metrics"])
             client_eval_examples.append(int(m.pop("num-examples")))
             client_eval_metrics.append(m)
-
-        agg_eval = aggregate_metrics(client_eval_metrics, client_eval_examples)
+        
+        if not client_eval_metrics:
+            agg_eval = {"eval_loss": None, "eval_acc": None}
+        else:
+            agg_eval = aggregate_metrics(client_eval_metrics, client_eval_examples)
+        
         print(f"  Eval  loss: {agg_eval.get('eval_loss', 0):.4f} | "
               f"Eval  acc: {agg_eval.get('eval_acc', 0):.4f}")
-
+        
         # Store results
         # results.append({
         #     "round": round_num,
@@ -220,7 +301,9 @@ def main(grid: Grid, context: Context) -> None:
         })
 
     # save as json
-    results_dir = Path("results/tp2_results/fedprox_vary_alpha") ## path to save results for different experiments
+    output_dir = str(context.run_config.get("output-dir", "./results/tp3_results"))
+    results_dir = Path(output_dir)
+    # results_dir = Path("results/vary_alpha") ## path to save results for different experiments
     results_dir.mkdir(exist_ok=True)
     out_path = results_dir / f"{run_id}.json"
 
@@ -250,6 +333,57 @@ def global_evaluate(model: CustomFashionModel) -> tuple[float, float]:
     
     loss, acc = model.test_epoch(test_loader, criterion, device)
     return loss, acc
+
+# counter posisoning attack
+def fedmedian(state_dicts: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
+    aggregated = {}
+    for key in state_dicts[0].keys():
+        # Stack all clients' tensors for this parameter
+        # Shape: (num_clients, *param_shape)
+        stacked = torch.stack([sd[key].float() for sd in state_dicts], dim=0)
+
+        # Coordinate-wise median along client dimension (dim=0)
+        aggregated[key] = torch.median(stacked, dim=0).values
+
+    return aggregated
+
+def krum(state_dicts: List[Dict[str, torch.Tensor]], f: int) -> Dict[str, torch.Tensor]:
+    n = len(state_dicts)
+    k = n - f - 2
+    if k < 1:
+        k = 1
+
+    # 1. Flatten 
+    flat_params = []
+    for sd in state_dicts:
+        flat = np.concatenate([
+            val.cpu().numpy().flatten()
+            for val in sd.values()
+        ])
+        flat_params.append(flat)
+
+    flat_params = np.array(flat_params)
+
+    # 2. Compute Euclidean distances
+    distances = np.zeros((n, n))
+    for i in range(n):
+        for j in range(n):
+            if i != j:
+                distances[i][j] = np.linalg.norm(flat_params[i] - flat_params[j])
+
+    # 3. Score 
+    scores = np.zeros(n)
+    for i in range(n):
+        neighbor_distances = sorted(
+            [distances[i][j] for j in range(n) if j != i]
+        )
+        scores[i] = sum(neighbor_distances[:k])
+
+    # 4. Select client with lowest score
+    best_client = int(np.argmin(scores))
+    print(f"  Krum selected client {best_client} (score={scores[best_client]:.4f})")
+
+    return state_dicts[best_client]
 
 # def global_evaluate(server_round: int, arrays: ArrayRecord) -> MetricRecord:
 #     """Evaluate model on central data."""

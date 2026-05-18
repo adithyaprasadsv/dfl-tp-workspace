@@ -1,0 +1,152 @@
+[
+  {
+    "round": 1,
+    "num_train_clients": 50,
+    "train_loss": 0.22444348946600765,
+    "train_acc": 0.9224336033151253,
+    "fed_eval_loss": 1.8780463035020611,
+    "fed_eval_acc": 0.3213030980517407,
+    "central_loss": 2.177941318130493,
+    "central_acc": 0.2823
+  },
+  {
+    "round": 2,
+    "num_train_clients": 50,
+    "train_loss": 0.14452211482539956,
+    "train_acc": 0.9504614805048032,
+    "fed_eval_loss": 1.4921885325557502,
+    "fed_eval_acc": 0.5448062015503876,
+    "central_loss": 1.7539738370895386,
+    "central_acc": 0.394
+  },
+  {
+    "round": 3,
+    "num_train_clients": 50,
+    "train_loss": 0.12594436615968505,
+    "train_acc": 0.9556601996609531,
+    "fed_eval_loss": 1.27182227488487,
+    "fed_eval_acc": 0.5244623655913978,
+    "central_loss": 1.8735659734725951,
+    "central_acc": 0.2621
+  },
+  {
+    "round": 4,
+    "num_train_clients": 50,
+    "train_loss": 0.11318362352750604,
+    "train_acc": 0.9595027312111509,
+    "fed_eval_loss": 1.3191753393305925,
+    "fed_eval_acc": 0.6517735334242838,
+    "central_loss": 1.6642498613357544,
+    "central_acc": 0.4365
+  },
+  {
+    "round": 5,
+    "num_train_clients": 50,
+    "train_loss": 0.10525518370645287,
+    "train_acc": 0.9619137313995103,
+    "fed_eval_loss": 1.0033159169376407,
+    "fed_eval_acc": 0.6097961867192636,
+    "central_loss": 1.3870171905517579,
+    "central_acc": 0.4177
+  },
+  {
+    "round": 6,
+    "num_train_clients": 50,
+    "train_loss": 0.10145643134122347,
+    "train_acc": 0.9637973252966661,
+    "fed_eval_loss": 0.5250260927354584,
+    "fed_eval_acc": 0.827625247664874,
+    "central_loss": 1.3421102323532104,
+    "central_acc": 0.458
+  },
+  {
+    "round": 7,
+    "num_train_clients": 50,
+    "train_loss": 0.0974159219844624,
+    "train_acc": 0.9656432473158787,
+    "fed_eval_loss": 1.103919750204514,
+    "fed_eval_acc": 0.5388704318936877,
+    "central_loss": 1.279618388938904,
+    "central_acc": 0.495
+  },
+  {
+    "round": 8,
+    "num_train_clients": 50,
+    "train_loss": 0.09004491265494059,
+    "train_acc": 0.9665850442644566,
+    "fed_eval_loss": 0.813487229943147,
+    "fed_eval_acc": 0.6710715311692043,
+    "central_loss": 1.265491696357727,
+    "central_acc": 0.4664
+  },
+  {
+    "round": 9,
+    "num_train_clients": 50,
+    "train_loss": 0.08579715342536103,
+    "train_acc": 0.9690713882087022,
+    "fed_eval_loss": 0.8448050721964442,
+    "fed_eval_acc": 0.6968421052631579,
+    "central_loss": 1.098000551700592,
+    "central_acc": 0.539
+  },
+  {
+    "round": 10,
+    "num_train_clients": 50,
+    "train_loss": 0.08227271938609247,
+    "train_acc": 0.9701638726690526,
+    "fed_eval_loss": 0.7937177690963252,
+    "fed_eval_acc": 0.6575481256332321,
+    "central_loss": 1.096198074245453,
+    "central_acc": 0.5138
+  },
+  {
+    "round": 11,
+    "num_train_clients": 50,
+    "train_loss": 0.07923349321381581,
+    "train_acc": 0.9710303258617442,
+    "fed_eval_loss": 0.8058239009350555,
+    "fed_eval_acc": 0.6953958450308816,
+    "central_loss": 0.9842995530128479,
+    "central_acc": 0.6239
+  },
+  {
+    "round": 12,
+    "num_train_clients": 50,
+    "train_loss": 0.07822141466832278,
+    "train_acc": 0.971595404030891,
+    "fed_eval_loss": 0.43936971643627276,
+    "fed_eval_acc": 0.8115865001328727,
+    "central_loss": 1.0022093865394592,
+    "central_acc": 0.598
+  },
+  {
+    "round": 13,
+    "num_train_clients": 50,
+    "train_loss": 0.07844038350327412,
+    "train_acc": 0.9726502166132982,
+    "fed_eval_loss": 0.6711767283240236,
+    "fed_eval_acc": 0.6633825944170771,
+    "central_loss": 0.9212563176155091,
+    "central_acc": 0.6042
+  },
+  {
+    "round": 14,
+    "num_train_clients": 50,
+    "train_loss": 0.07469971648955119,
+    "train_acc": 0.9731776229045018,
+    "fed_eval_loss": 0.5001601546315958,
+    "fed_eval_acc": 0.7922321010762752,
+    "central_loss": 0.9380090520858765,
+    "central_acc": 0.6334
+  },
+  {
+    "round": 15,
+    "num_train_clients": 50,
+    "train_loss": 0.07248611698400852,
+    "train_acc": 0.974194763608966,
+    "fed_eval_loss": 0.74772335285412,
+    "fed_eval_acc": 0.6923282544774124,
+    "central_loss": 0.8968764993667603,
+    "central_acc": 0.6406
+  }
+]

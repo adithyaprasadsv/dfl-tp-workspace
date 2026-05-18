@@ -88,9 +88,11 @@ import torch
 import torch.nn as nn
 from flwr.app import ArrayRecord, Context, Message, MetricRecord, RecordDict
 from flwr.clientapp import ClientApp
+import json
 
 from pytorchexample.data import load_client_data
 from pytorchexample.model import CustomFashionModel
+import numpy as np
 
 # Create ClientApp
 app = ClientApp()
@@ -113,6 +115,17 @@ def train(msg: Message, context: Context) -> Message:
     local_epochs = int(msg.content["config"]["local-epochs"])
     optimizer_name = str(context.run_config.get("client-optimizer", "sgd"))
     algorithm = str(context.run_config.get("client-algorithm", "fedavg"))
+
+    malicious_ratio = float(context.run_config.get("malicious-ratio", 0.0))
+    attack_type = str(context.run_config.get("attack-type", "data"))
+    num_malicious = int(malicious_ratio * num_partitions)
+    is_malicious  = (partition_id < num_malicious)
+    
+    ## load c for scaffold if needed
+    if algorithm == "scaffold":
+        c_global_arrays = msg.content["c_global"].to_numpy_ndarrays()
+    else:
+        c_global_arrays = None
 
     # set model
     model = CustomFashionModel()
@@ -145,37 +158,132 @@ def train(msg: Message, context: Context) -> Message:
             train_loader, criterion, optimizer, device
         )
         num_examples = batch_size   # only one batch was used
+    elif algorithm == "scaffold":
+        print("Using SCAFFOLD")
+        # context.state persists across rounds for the same client
+        if "c_local" in context.state:
+            c_local_arrays = context.state["c_local"].to_numpy_ndarrays()
+        else:
+            # First round: initialize c_k to zeros matching model shape
+            c_local_arrays = [np.zeros_like(p) for p in model.get_model_parameters()]
+
+
+        w_before = model.get_model_parameters()
+
+        train_loss, train_acc = 0.0, 0.0
+        total_steps = 0
+        for _ in range(local_epochs):
+            train_loss, train_acc, steps = model.train_epoch_scaffold(
+                train_loader, criterion, optimizer, device,
+                c_local_arrays, c_global_arrays
+            )
+            total_steps += steps
+
+        # Snapshot weights after training
+        w_after = model.get_model_parameters()
+
+        # Update c_local:
+        # c_k ← c_k - c + (1 / η*T) * (w_before - w_after)
+        # T  = total_steps * local_epochs   # total gradient steps
+        T = total_steps
+        lr_val = float(msg.content["config"]["lr"])
+
+        new_c_local = [
+            ck - c + (1.0 / (lr_val * T)) * (wb - wa)
+            for ck, c, wb, wa in zip(
+                c_local_arrays, c_global_arrays, w_before, w_after
+            )
+        ]
+
+        # Save updated c_local back to persistent state
+        context.state["c_local"] = ArrayRecord(new_c_local)
+        num_examples = len(train_loader.dataset)
     else:
         # FedAvg
         train_loss, train_acc = 0.0, 0.0
-        for _ in range(local_epochs):
-            if mu > 0.0:
-                print("Using FedProx with mu =", mu)
-                # FedProx
-                train_loss, train_acc = model.train_epoch_fedprox(
-                    train_loader, criterion, optimizer,
-                    device, global_params, mu
+
+        # for _ in range(local_epochs):
+        #     if mu > 0.0:
+        #         print("Using FedProx with mu =", mu)
+        #         # FedProx
+        #         train_loss, train_acc = model.train_epoch_fedprox(
+        #             train_loader, criterion, optimizer,
+        #             device, global_params, mu
+        #         )
+        #     else:
+        #         print("Using FedAvg")
+        #         # Standard FedAvg
+        #         train_loss, train_acc = model.train_epoch(
+        #             train_loader, criterion, optimizer, device
+        #         )
+
+        if is_malicious and attack_type == "data":
+            # DATA POISONING
+            print("Performing data poisoning attack (label flipping)")
+            for _ in range(local_epochs):
+                train_loss, train_acc = model.train_epoch_data_poison(
+                    train_loader, criterion, optimizer, device
                 )
-            else:
-                print("Using FedAvg")
-                # Standard FedAvg
+        elif is_malicious and attack_type == "model":
+            # MODEL POISONING
+            print("Performing model poisoning attack")
+            for _ in range(local_epochs):
                 train_loss, train_acc = model.train_epoch(
                     train_loader, criterion, optimizer, device
                 )
+            poisoned_params = apply_model_poison(
+                model.get_model_parameters(), attack_scale=2.0
+            )
+            model.set_model_parameters(poisoned_params)
+        else:
+            # NO POISONING
+            for _ in range(local_epochs):
+                if mu > 0.0:
+                    print("Using FedProx with mu =", mu)
+                    global_params = [p.detach().clone() for p in model.parameters()]
+                    train_loss, train_acc = model.train_epoch_fedprox(
+                        train_loader, criterion, optimizer, device, global_params, mu
+                    )
+                else:
+                    print("Using FedAvg")
+                    train_loss, train_acc = model.train_epoch(
+                        train_loader, criterion, optimizer, device
+                    )
+
         num_examples = len(train_loader.dataset)
 
-    updated_arrays = ArrayRecord(model.get_model_parameters())
-    metrics = MetricRecord({
-        "train_loss": train_loss,
-        "train_acc": train_acc,
-        "num-examples": len(train_loader.dataset),
-    })
-    content = RecordDict({
-        "arrays": updated_arrays,
-        "metrics": metrics,
-    })
+    if algorithm == "scaffold":
+        updated_arrays  = ArrayRecord(model.get_model_parameters())
+        c_local_record  = ArrayRecord(new_c_local)
+        metrics = MetricRecord({
+            "train_loss": train_loss,
+            "train_acc": train_acc,
+            "num-examples": float(num_examples)
+        })
+        content = RecordDict({
+            "arrays":  updated_arrays,
+            "c_local": c_local_record,
+            "metrics": metrics
+        })
+    else:
+        updated_arrays = ArrayRecord(model.get_model_parameters())
+        metrics = MetricRecord({
+            "train_loss": train_loss,
+            "train_acc": train_acc,
+            "num-examples": len(train_loader.dataset),
+            "is_malicious": float(is_malicious)
+        })
+        content = RecordDict({
+            "arrays": updated_arrays,
+            "metrics": metrics
+        })
+
     return Message(content=content, reply_to=msg)
 
+# model poisoning
+def apply_model_poison(params: list, attack_scale: float = 5.0) -> list:
+    # reverse gradient direction
+    return [-p * attack_scale for p in params]
 
 @app.evaluate()
 def evaluate(msg: Message, context: Context) -> Message:

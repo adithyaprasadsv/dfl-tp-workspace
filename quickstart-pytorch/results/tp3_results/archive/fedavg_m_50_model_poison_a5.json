@@ -1,0 +1,102 @@
+[
+  {
+    "round": 1,
+    "num_train_clients": 50,
+    "train_loss": 2.1331198963056885,
+    "train_acc": 0.295382645375113,
+    "fed_eval_loss": 3.3145014091532343,
+    "fed_eval_acc": 0.0,
+    "central_loss": 2.5071127010345458,
+    "central_acc": 0.1812
+  },
+  {
+    "round": 2,
+    "num_train_clients": 50,
+    "train_loss": 1.2336243209079734,
+    "train_acc": 0.5381892136185598,
+    "fed_eval_loss": 356.784750479239,
+    "fed_eval_acc": 0.0015055706112616681,
+    "central_loss": 230.85904138183594,
+    "central_acc": 0.1399
+  },
+  {
+    "round": 3,
+    "num_train_clients": 50,
+    "train_loss": 53.039106686048726,
+    "train_acc": 0.3231771617957216,
+    "fed_eval_loss": 2700834.14763483,
+    "fed_eval_acc": 0.0,
+    "central_loss": 2412028.41,
+    "central_acc": 0.1
+  },
+  {
+    "round": 4,
+    "num_train_clients": 50,
+    "train_loss": NaN,
+    "train_acc": 0.18119162398312744,
+    "fed_eval_loss": NaN,
+    "fed_eval_acc": 0.0,
+    "central_loss": NaN,
+    "central_acc": 0.0
+  },
+  {
+    "round": 5,
+    "num_train_clients": 50,
+    "train_loss": NaN,
+    "train_acc": 0.0,
+    "fed_eval_loss": NaN,
+    "fed_eval_acc": 0.0,
+    "central_loss": NaN,
+    "central_acc": 0.0
+  },
+  {
+    "round": 6,
+    "num_train_clients": 50,
+    "train_loss": NaN,
+    "train_acc": 0.0,
+    "fed_eval_loss": NaN,
+    "fed_eval_acc": 0.0,
+    "central_loss": NaN,
+    "central_acc": 0.0
+  },
+  {
+    "round": 7,
+    "num_train_clients": 50,
+    "train_loss": NaN,
+    "train_acc": 0.0,
+    "fed_eval_loss": NaN,
+    "fed_eval_acc": 0.0,
+    "central_loss": NaN,
+    "central_acc": 0.0
+  },
+  {
+    "round": 8,
+    "num_train_clients": 50,
+    "train_loss": NaN,
+    "train_acc": 0.0,
+    "fed_eval_loss": NaN,
+    "fed_eval_acc": 0.0,
+    "central_loss": NaN,
+    "central_acc": 0.0
+  },
+  {
+    "round": 9,
+    "num_train_clients": 50,
+    "train_loss": NaN,
+    "train_acc": 0.0,
+    "fed_eval_loss": NaN,
+    "fed_eval_acc": 0.0,
+    "central_loss": NaN,
+    "central_acc": 0.0
+  },
+  {
+    "round": 10,
+    "num_train_clients": 50,
+    "train_loss": NaN,
+    "train_acc": 0.0,
+    "fed_eval_loss": NaN,
+    "fed_eval_acc": 0.0,
+    "central_loss": NaN,
+    "central_acc": 0.0
+  }
+]

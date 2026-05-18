@@ -92,6 +92,49 @@ class CustomFashionModel(nn.Module):
         avg_loss = total_loss / total
         accuracy = correct / total
         return avg_loss, accuracy
+    
+
+    def train_epoch_scaffold(self, train_loader: DataLoader, criterion: nn.Module, 
+                             optimizer: torch.optim.Optimizer, device: torch.device, 
+                             c_local: List[np.ndarray], 
+                             c_global: List[np.ndarray]) -> Tuple[float, float, int]:
+        # c = control variate
+
+        self.train()
+        self.to(device)
+        ck = [torch.tensor(v, dtype=torch.float32).to(device) for v in c_local]
+        c = [torch.tensor(v, dtype=torch.float32).to(device) for v in c_global]
+
+        total_loss = 0.0
+        correct = 0
+        total = 0
+        steps = 0
+
+        for images, labels in train_loader:
+            images, labels = images.to(device), labels.to(device)
+
+            optimizer.zero_grad()
+            logits = self(images)
+            loss = criterion(logits, labels)
+            loss.backward()
+
+            # Apply SCAFFOLD correction to each parameter's gradient
+            # g = g - c_k + c
+            for param, cki, ci in zip(self.parameters(), ck, c):
+                if param.grad is not None:
+                    param.grad.data.add_(-cki + ci)
+
+            optimizer.step()
+
+            total_loss += loss.item() * images.size(0)
+            preds = logits.argmax(dim=1)
+            correct += (preds == labels).sum().item()
+            total += images.size(0)
+            steps += 1
+
+        avg_loss = total_loss / total
+        accuracy = correct / total
+        return avg_loss, accuracy, steps
 
     # FedSGD: exactly one mini-batch gradient step
     def train_one_step(self, train_loader: DataLoader, criterion: nn.Module, 
@@ -113,6 +156,37 @@ class CustomFashionModel(nn.Module):
         preds = logits.argmax(dim=1)
         acc = (preds == labels).sum().item() / labels.size(0)
         return loss.item(), acc
+    
+    # data poisoning
+    def train_epoch_data_poison(self, train_loader: DataLoader, criterion: nn.Module,
+                                 optimizer: torch.optim.Optimizer, device: torch.device,
+                                 num_classes: int = 10) -> Tuple[float, float]:
+        self.train()
+        self.to(device)
+
+        total_loss = 0.0
+        correct = 0
+        total = 0
+
+        for images, labels in train_loader:
+            images = images.to(device)
+
+            # label-flipping attack
+            labels_poisoned = (num_classes - 1 - labels).to(device)
+
+            optimizer.zero_grad()
+            logits = self(images)
+            loss = criterion(logits, labels_poisoned)
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm=1.0)
+            optimizer.step()
+
+            total_loss += loss.item() * images.size(0)
+            preds = logits.argmax(dim=1)
+            correct += (preds == labels_poisoned).sum().item()
+            total += images.size(0)
+
+        return total_loss/total, correct/total
 
     # evaluation
     @torch.no_grad()
@@ -129,13 +203,21 @@ class CustomFashionModel(nn.Module):
             images, labels = images.to(device), labels.to(device)
 
             logits = self(images)
+            if torch.isnan(logits).any():
+                print(f"  NaN in logits! max={logits.abs().max():.2f}")
+                return float('nan'), 0.0
             loss = criterion(logits, labels)
+            if torch.isnan(loss):
+                print(f"  NaN loss! logits range: [{logits.min():.2f}, {logits.max():.2f}]")
+                return float('nan'), 0.0
 
             total_loss += loss.item() * images.size(0)
             preds = logits.argmax(dim=1)
             correct += (preds == labels).sum().item()
             total += images.size(0)
 
+        if total == 0:
+            return float('nan'), 0.0
         avg_loss = total_loss / total
         accuracy = correct / total
         return avg_loss, accuracy

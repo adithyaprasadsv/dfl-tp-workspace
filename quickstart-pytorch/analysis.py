@@ -103,7 +103,7 @@ def main():
     visualizer = ResultsVisualizer()
 
     print("\nLoading runs")
-    results_dir = Path("results/tp2_results/fedprox_vary_alpha") ## path to save results for different experiments
+    results_dir = Path("results/vary_alpha_epoch") ## path to save results for different experiments
 
     available = sorted(results_dir.glob("*.json"))
     print(f"Available result files in {results_dir}/:")
