@@ -103,6 +103,7 @@ def main():
     visualizer = ResultsVisualizer()
 
     print("\nLoading runs")
+    ## manually specify paths to result files
     results_dir = Path("results/vary_alpha_epoch") ## path to save results for different experiments
 
     available = sorted(results_dir.glob("*.json"))
