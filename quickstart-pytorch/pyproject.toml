@@ -28,21 +28,26 @@ serverapp = "pytorchexample.server_app:app"
 clientapp = "pytorchexample.client_app:app"
 
 [tool.flwr.app.config]
-num-server-rounds = 10
+## TP1 Parameters
+num-server-rounds = 20
 fraction-train = 1
 fraction-evaluate = 0.5
-local-epochs = 1
+local-epochs = 3
 learning-rate = 0.01
 batch-size = 64
-num-clients = 50
-alpha-dirichlet = 100
+num-clients = 20
+alpha-dirichlet = 0.01
 data-dir = "./data"
 seed = 42
+
+## TP2 Parameters
 client-optimizer = "sgd" # "sgd" or "adam"
 client-algorithm = "fedavg" ## "fedavg" or "fedsgd" or "scaffold"
 fedprox-mu = 0
-malicious-ratio = 0
-attack-type = "data"  ## "data" or "model"
+
+## TP3 Parameters
+malicious-ratio = 0 # 0 = no attack
+attack-type = "model"  ## "data" or "model"
 strategy = "fedavg" ## "fedavg", "fedmedian", or "krum"
-krum-f = 0  # malicious clients
-output-dir = "./results/"
+krum-f = 0  # num malicious clients
+output-dir = "./results/tp3_results/heterogeneity" ## Output directory

@@ -1,0 +1,27 @@
+Iterations:
+
+TP 1
+
+config n=50, alpha=0.1, f-train=1.0, rounds=10, epoch=1
+1. Vary Alpha value: 0.01, 5, 100 -- default_config_alpha_5
+2. Vary Clients: 5, 20, 50 -- default_config_n_20
+3. Vary Algo or Optimizer
+config n=50, alpha=0.01 & 100, f-train=1.0, rounds=10
+	a. fedavg+SGD
+	b. fedavg+adam
+	c. fedSGD
+config n=20, alpha=0.1, f-train=1.0, rounds=20
+4. Vary Epoch: 1, 5 -- fedavg_epoch_1
+
+TP2
+
+config n=50, epoch=3, f-train=1.0, rounds=10
+1. baseline vs fedprox vs scaffold -- alpha=0.01,100
+
+TP3
+
+config n=20, epoch=3, f-train=1.0, rounds=20, alpha=10
+1. malicious -- data and model poison -- vary ratio
+2. FedMedian vs FedAvg with both poison
+3. Krum vs FedAvg with both poison
+4. vary alpha for model poison -- 10, 0.01

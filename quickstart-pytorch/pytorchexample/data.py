@@ -41,44 +41,44 @@ def generate_distributed_datasets(k: int, alpha: float, save_dir: str) -> None:
             client_indices[i].extend(indices_c[prev:end].tolist())
             prev = end
 
+    # print("BEFORE FIX:")
+    # for i in range(k):
+    #     labels_i = [labels[j] for j in client_indices[i]]
+    #     dist = Counter(labels_i)
+    #     print(f"  client_{i}: {dict(sorted(dist.items()))}, total={len(labels_i)}")
+
     # fix clients with too few samples
     min_samples = 64
 
-    # Build a surplus pool from clients that have plenty
-    surplus = []
-    for i in range(k):
-        n = len(client_indices[i])
-        if n > 2 * min_samples:
-            # donate up to half the surplus, keep at least 2*min_samples
-            donate_n = (n - 2 * min_samples) // 2
-            if donate_n > 0:
-                donated = client_indices[i][:donate_n]
-                client_indices[i] = client_indices[i][donate_n:]
-                surplus.extend(donated)
-
-    # Give from surplus to clients below minimum
-    fallback_rng = np.random.default_rng(99)
     for i in range(k):
         deficit = min_samples - len(client_indices[i])
         if deficit <= 0:
             continue
 
-        if len(surplus) >= deficit:
-            client_indices[i].extend(surplus[:deficit])
-            surplus = surplus[deficit:]
+        # Find this client's dominant class
+        client_labels = labels[client_indices[i]]
+        if len(client_labels) > 0:
+            dominant_class = np.bincount(client_labels).argmax()
         else:
-            # surplus exhausted — sample fresh from full dataset
-            extra = fallback_rng.choice(
-                len(full_dataset), size=deficit, replace=False
-            ).tolist()
-            client_indices[i].extend(extra)
+            dominant_class = rng.integers(0, num_classes)
+
+        # Sample additional indices from that class with replacement
+        class_pool = class_indices[dominant_class]
+        extra = rng.choice(class_pool, size=deficit, replace=True).tolist()
+        client_indices[i].extend(extra)
+
+    print("AFTER FIX:")
+    for i in range(k):
+        labels_i = [full_dataset.targets[j].item() for j in client_indices[i]]
+        dist = Counter(labels_i)
+        print(f"  client_{i}: {dict(sorted(dist.items()))}, total={len(labels_i)}")
 
     # Save each client's data
     print(f"\nGenerating {k} client partitions (alpha={alpha}):")
     for i in range(k):
         idx = torch.tensor(client_indices[i], dtype=torch.long)
         torch.save(idx, os.path.join(save_dir, f"client_{i}.pt"),)
-        print(f"client_{i}.pt: {len(idx)} samples")
+        # print(f"client_{i}.pt: {len(idx)} samples")
 
     empty = sum(1 for c in client_indices if len(c) == 0)
     if empty:

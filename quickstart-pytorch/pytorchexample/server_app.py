@@ -353,7 +353,6 @@ def krum(state_dicts: List[Dict[str, torch.Tensor]], f: int) -> Dict[str, torch.
     if k < 1:
         k = 1
 
-    # 1. Flatten 
     flat_params = []
     for sd in state_dicts:
         flat = np.concatenate([
@@ -364,14 +363,14 @@ def krum(state_dicts: List[Dict[str, torch.Tensor]], f: int) -> Dict[str, torch.
 
     flat_params = np.array(flat_params)
 
-    # 2. Compute Euclidean distances
+    #Euclidean distances
     distances = np.zeros((n, n))
     for i in range(n):
         for j in range(n):
             if i != j:
                 distances[i][j] = np.linalg.norm(flat_params[i] - flat_params[j])
 
-    # 3. Score 
+    #Score 
     scores = np.zeros(n)
     for i in range(n):
         neighbor_distances = sorted(
@@ -379,7 +378,7 @@ def krum(state_dicts: List[Dict[str, torch.Tensor]], f: int) -> Dict[str, torch.
         )
         scores[i] = sum(neighbor_distances[:k])
 
-    # 4. Select client with lowest score
+    #client with lowest score
     best_client = int(np.argmin(scores))
     print(f"  Krum selected client {best_client} (score={scores[best_client]:.4f})")
 

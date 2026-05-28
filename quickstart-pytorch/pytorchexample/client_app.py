@@ -93,13 +93,14 @@ import json
 from pytorchexample.data import load_client_data
 from pytorchexample.model import CustomFashionModel
 import numpy as np
+import io
 
 # Create ClientApp
 app = ClientApp()
 
 def build_optimizer(model, optimizer_name: str, lr: float):
     if optimizer_name == "adam":
-        return torch.optim.Adam(model.parameters(), lr=lr)
+        return torch.optim.Adam(model.parameters(), lr=lr, betas=(0.9, 0.99))
     else:
         return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
 
@@ -150,7 +151,13 @@ def train(msg: Message, context: Context) -> Message:
 
     # Train locally
     criterion = nn.CrossEntropyLoss()
+
     optimizer = build_optimizer(model, optimizer_name, lr)
+    print("optimizer:", optimizer_name)
+    if optimizer_name == "adam" and "optimizer_state" in context.state:
+        state_bytes = context.state["optimizer_state"].to_numpy_ndarrays()[0].tobytes()
+        buffer = io.BytesIO(state_bytes)
+        optimizer.load_state_dict(torch.load(buffer))
 
     if algorithm == "fedsgd":
         print("Using FedSGD")
@@ -277,6 +284,12 @@ def train(msg: Message, context: Context) -> Message:
             "arrays": updated_arrays,
             "metrics": metrics
         })
+
+    if optimizer_name == "adam":        
+        buffer = io.BytesIO()
+        torch.save(optimizer.state_dict(), buffer)
+        state_array = np.frombuffer(buffer.getvalue(), dtype=np.uint8)
+        context.state["optimizer_state"] = ArrayRecord([state_array])
 
     return Message(content=content, reply_to=msg)
 
