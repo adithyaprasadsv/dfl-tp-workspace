@@ -26,3 +26,5 @@ config n=20, epoch=3, f-train=1.0, rounds=20, alpha=10
 2. FedMedian vs FedAvg with both poison
 3. Krum vs FedAvg with both poison
 4. vary alpha for model poison -- 10, 0.01
+
+
