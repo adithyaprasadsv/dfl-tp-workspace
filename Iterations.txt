@@ -12,6 +12,7 @@ config n=50, alpha=0.01 & 100, f-train=1.0, rounds=10
 	c. fedSGD
 config n=20, alpha=0.1, f-train=1.0, rounds=20
 4. Vary Epoch: 1, 5 -- fedavg_epoch_1
+5. Vary Sampling Ratio
 
 TP2
 
