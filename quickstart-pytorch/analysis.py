@@ -104,7 +104,7 @@ def main():
 
     print("\nLoading runs")
     ## manually specify paths to result files
-    results_dir = Path("results/tp1_results/vary_alpha") ## path to save results for different experiments
+    results_dir = Path("results/tp2_results/") ## path to save results for different experiments
 
     available = sorted(results_dir.glob("*.json"))
     print(f"Available result files in {results_dir}/:")
