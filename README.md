@@ -20,7 +20,7 @@ quickstart-pytorch/
     ├── client_app.py           # Flower ClientApp (@train, @evaluate)
     └── server_app.py           # Flower ServerApp (manual FedAvg loop)
 ├── results
-    ├── tp1_results
+    ├── tp1_results             # Contains folders by experiments
     ├── tp2_results
     ├── tp3_results
 ```
