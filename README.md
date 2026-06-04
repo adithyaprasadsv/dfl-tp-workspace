@@ -13,6 +13,7 @@ quickstart-pytorch/
 ├── generate_data.py            # run once before simulation
 ├── analysis.py                 # ResultsVisualizer for comparing runs
 ├── data/client_n.pt            # client split data using dirichlet distribution
+├── iterations.txt              # record of simulated experiments
 └── pytorchexample/
     ├── __init__.py
     ├── data.py                 # Dirichlet partitioning + data loaders
